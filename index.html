@@ -123,6 +123,7 @@
             {id: "g22", sub: "SEGURIDAD", label: "Pala manual"},
             {id: "g23", sub: "SEGURIDAD", label: "Balizas Triangulares"},
             {id: "g24", sub: "SEGURIDAD", label: "Conos y Calzas de Ruedas"},
+            {id: "g46", sub: "SEGURIDAD", label: "Extintor vigente"},
 
             {id: "g38", sub: "ESTADO TÉCNICO", label: "Dirección"},
             {id: "g39", sub: "ESTADO TÉCNICO", label: "Suspensión"},
@@ -314,7 +315,7 @@
                 if (saved) {
                     state.formData = {
                         ...state.formData,
-                        responsible: saved.responsible,
+                        driverName: saved.driverName,
                         startMileage: saved.startMileage,
                         dailyChecks: saved.dailyChecks,
                         checks: saved.checkStatus,
@@ -381,7 +382,7 @@
 
         function validate(requireUrgency = false) {
             const errs = [];
-            if (!state.formData.responsible) errs.push("Falta Responsable");
+            if (!state.formData.driverName) errs.push("Falta Responsable (Nombre)");
             if (!state.formData.startMileage) errs.push("Falta Kilometraje");
             if (!state.formData.weekDate) errs.push("Falta Fecha");
             if (requireUrgency && !state.formData.urgency) errs.push("Falta Urgencia");
@@ -443,7 +444,7 @@
             }
         }
 
-        function sendMaintenanceAlert() {
+        function exportMaintenanceExcel() {
             if (validate(true).length > 0) return alert(validate(true).join('\n'));
             saveRecord('Pedido Mantenimiento');
             
@@ -452,15 +453,47 @@
                 .filter(i => checks[i.id])
                 .map(i => {
                     const status = checks[i.id];
-                    const prefix = status === 'FALLA CRÍTICA' ? '🚨 [FALLA CRÍTICA] ' : '🔧 [ADECUACIÓN] ';
-                    return `${prefix}${i.label}`;
+                    return {
+                        ITEM: i.label,
+                        CATEGORIA: i.sub,
+                        ESTADO: status
+                    };
                 });
             
-            const criticalCount = items.filter(t => t.includes('FALLA CRÍTICA')).length;
-            const subjectPrefix = criticalCount > 0 ? '⚠️ URGENTE: FALLA CRÍTICA - ' : 'MANTENIMIENTO - ';
+            if (items.length === 0 && !state.formData.observations) {
+                return alert("No hay fallas marcadas ni observaciones para exportar.");
+            }
 
-            const body = `URGENCIA: ${state.formData.urgency}\n\nDETALLE DE SOLICITUD:\n${items.join('\n')}\n\nObservaciones:\n${state.formData.observations || '-'}`;
-            window.location.href = `mailto:administracion@azilutsa.com.ar?subject=${subjectPrefix}${state.selectedVehicle.id}&body=${encodeURIComponent(body)}`;
+            const wb = XLSX.utils.book_new();
+            const data = [
+                ["PEDIDO DE MANTENIMIENTO / ADECUACIÓN"],
+                ["VEHÍCULO", state.selectedVehicle.description + " (" + state.selectedVehicle.id + ")"],
+                ["PATENTE", state.selectedVehicle.domain],
+                ["CHOFER", state.formData.driverName],
+                ["DNI", state.formData.driverDni],
+                ["KM", state.formData.startMileage],
+                ["FECHA", state.formData.weekDate],
+                ["URGENCIA", state.formData.urgency],
+                [""],
+                ["DETALLE DE FALLAS / PEDIDOS:"]
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            XLSX.utils.sheet_add_json(ws, items, { origin: "A11" });
+            
+            // Agregar observaciones al final
+            const lastRow = 11 + items.length + 1;
+            XLSX.utils.sheet_add_aoa(ws, [
+                [""],
+                ["OBSERVACIONES GENERALES:"],
+                [state.formData.observations || "Sin observaciones"]
+            ], { origin: "A" + lastRow });
+
+            XLSX.utils.book_append_sheet(wb, ws, "Pedido");
+            const fname = `Pedido_Mantenimiento_${state.selectedVehicle.id}_${state.formData.weekDate}.xlsx`;
+            XLSX.writeFile(wb, fname);
+
+            alert("Reporte descargado. Ahora podés adjuntarlo a un correo o enviarlo por WhatsApp.");
         }
 
         function backupData() {
@@ -775,7 +808,9 @@
                                     </label>
                                 `).join('')}
                             </div>
-                            <button onclick="sendMaintenanceAlert()" class="mt-4 w-full bg-red-600 text-white font-bold py-2 rounded shadow hover:bg-red-700 transition-colors print:hidden">ENVIAR PEDIDO</button>
+                            <button onclick="exportMaintenanceExcel()" class="mt-4 w-full bg-red-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-red-700 transition-colors print:hidden uppercase tracking-tight flex items-center justify-center gap-2">
+                                📥 DESCARGAR PEDIDO PARA CORREO
+                            </button>
                         </div>
                     </div>
                 </div>
