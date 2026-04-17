@@ -192,7 +192,8 @@
             showHistoryModal: false,
             layoutMode: window.innerWidth > 768 ? 'pc' : 'mobile',
             shouldFixUser: localStorage.getItem('should_fix_user') === 'true',
-            fixedUser: localStorage.getItem('fixed_user') || ''
+            fixedName: localStorage.getItem('fixed_name') || '',
+            fixedDni: localStorage.getItem('fixed_dni') || ''
         };
         state.formData = initFormData();
 
@@ -204,7 +205,8 @@
 
         function initFormData() {
             return {
-                responsible: state.shouldFixUser ? state.fixedUser : '',
+                driverName: state.shouldFixUser ? state.fixedName : '',
+                driverDni: state.shouldFixUser ? state.fixedDni : '',
                 startMileage: '',
                 weekDate: new Date().toISOString().split('T')[0],
                 dailyChecks: {
@@ -262,7 +264,8 @@
             
             if (saved) {
                 state.formData = {
-                    responsible: saved.responsible || (state.shouldFixUser ? state.fixedUser : ''),
+                    driverName: saved.driverName || (state.shouldFixUser ? state.fixedName : ''),
+                    driverDni: saved.driverDni || (state.shouldFixUser ? state.fixedDni : ''),
                     startMileage: saved.startMileage || state.formData.startMileage,
                     weekDate: saved.weekDate,
                     dailyChecks: saved.dailyChecks || initFormData().dailyChecks,
@@ -288,9 +291,13 @@
                 state.formData[field] = value;
             }
 
-            if (field === 'responsible' && state.shouldFixUser) {
-                localStorage.setItem('fixed_user', value);
-                state.fixedUser = value;
+            if (field === 'driverName' && state.shouldFixUser) {
+                localStorage.setItem('fixed_name', value);
+                state.fixedName = value;
+            }
+            if (field === 'driverDni' && state.shouldFixUser) {
+                localStorage.setItem('fixed_dni', value);
+                state.fixedDni = value;
             }
 
             if (field === 'startMileage' && state.selectedVehicle) {
@@ -315,11 +322,13 @@
                         observations: saved.generalObservations
                     };
                 } else {
-                    const currentResp = state.formData.responsible;
+                    const currentName = state.formData.driverName;
+                    const currentDni = state.formData.driverDni;
                     const currentKm = state.formData.startMileage;
                     state.formData = initFormData();
                     state.formData.weekDate = value;
-                    state.formData.responsible = currentResp;
+                    state.formData.driverName = currentName;
+                    state.formData.driverDni = currentDni;
                     state.formData.startMileage = currentKm;
                 }
             }
@@ -330,8 +339,10 @@
             state.shouldFixUser = !state.shouldFixUser;
             localStorage.setItem('should_fix_user', state.shouldFixUser);
             if (state.shouldFixUser) {
-                localStorage.setItem('fixed_user', state.formData.responsible);
-                state.fixedUser = state.formData.responsible;
+                localStorage.setItem('fixed_name', state.formData.driverName);
+                localStorage.setItem('fixed_dni', state.formData.driverDni);
+                state.fixedName = state.formData.driverName;
+                state.fixedDni = state.formData.driverDni;
             }
             render();
         }
@@ -383,7 +394,8 @@
                 id: Date.now().toString(),
                 timestamp: new Date().toISOString(),
                 vehicleId: vehicle.id,
-                responsible: state.formData.responsible,
+                driverName: state.formData.driverName,
+                driverDni: state.formData.driverDni,
                 startMileage: state.formData.startMileage,
                 weekDate: state.formData.weekDate,
                 type: type,
@@ -409,7 +421,8 @@
             const wb = XLSX.utils.book_new();
             const data = [
                 ["REPORTE SEMANAL"], ["VEHÍCULO", state.selectedVehicle.description],
-                ["PATENTE", state.selectedVehicle.domain], ["RESPONSABLE", state.formData.responsible],
+                ["PATENTE", state.selectedVehicle.domain], ["CHOFER", state.formData.driverName],
+                ["DNI", state.formData.driverDni],
                 ["KM", state.formData.startMileage], ["FECHA", state.formData.weekDate], [""]
             ];
             
@@ -606,10 +619,11 @@
                 <div class="p-6 space-y-8">
                     <!-- Inputs -->
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 print:grid-cols-12">
-                        <div class="md:col-span-6">
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">APELLIDO Y NOMBRE Y DNI *</label>
-                            <div class="flex gap-2 items-center">
-                                <input type="text" placeholder="Ej: PEREZ JUAN 12.345.678" class="flex-1 p-2 border border-slate-300 rounded" value="${state.formData.responsible}" onchange="updateForm('responsible', this.value)">
+                        <div class="md:col-span-8">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre y Apellido / DNI *</label>
+                            <div class="flex flex-col md:flex-row gap-2">
+                                <input type="text" placeholder="APELLIDO Y NOMBRE" class="flex-[2] p-2 border border-slate-300 rounded" value="${state.formData.driverName}" onchange="updateForm('driverName', this.value)">
+                                <input type="text" placeholder="DNI" class="flex-1 p-2 border border-slate-300 rounded" value="${state.formData.driverDni}" onchange="updateForm('driverDni', this.value)">
                                 <label class="flex items-center gap-1 text-[10px] bg-slate-100 p-2 rounded border border-slate-200 cursor-pointer whitespace-nowrap">
                                     <input type="checkbox" ${state.shouldFixUser ? 'checked' : ''} onchange="toggleFixUser()"> ¿Fijar usuario?
                                 </label>
