@@ -261,6 +261,22 @@
             }, 0);
         }
 
+        function deleteRecord(id) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.')) return;
+            
+            state.history = state.history.filter(h => h.id !== id);
+            localStorage.setItem('vehicle_history', JSON.stringify(state.history));
+            
+            // Re-render
+            if (state.showHistoryModal) {
+                // Eliminar el overlay actual y volver a abrir para refrescar
+                const overlay = document.querySelector('.history-modal-overlay');
+                if (overlay) overlay.remove();
+                renderHistoryModal();
+            }
+            render(); // Refrescar el resto de la app
+        }
+
         // --- LOGIC ---
 
         function handleSearch(e) {
@@ -861,47 +877,24 @@
                                 let html = `<div class="mb-8">
                                     <h4 class="bg-slate-800 text-white px-3 py-1 text-xs font-bold uppercase tracking-wider mb-2 rounded-t">${groupName}</h4>`;
                                 
-                                if (state.layoutMode === 'pc') {
-                                    html += `<div class="items-grid-pc">`;
-                                    groupItems.forEach(i => {
-                                        html += `
-                                        <div class="item-row-pc">
-                                            <span class="text-[13px] font-medium text-slate-700">${i.label}</span>
-                                            <div class="flex gap-2">
-                                                <label class="flex flex-col items-center">
-                                                    <span class="text-[8px] font-bold text-blue-600 uppercase mb-0.5">Prog</span>
-                                                    <input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='PROGRAMAR ADECUACIÓN'?'checked':''} onclick="toggleCheck('${i.id}', 'PROGRAMAR ADECUACIÓN')" class="w-4 h-4 cursor-pointer">
-                                                </label>
-                                                <label class="flex flex-col items-center">
-                                                    <span class="text-[8px] font-bold text-red-600 uppercase mb-0.5">Crítico</span>
-                                                    <input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='FALLA CRÍTICA'?'checked':''} onclick="toggleCheck('${i.id}', 'FALLA CRÍTICA')" class="w-4 h-4 cursor-pointer">
-                                                </label>
-                                            </div>
-                                        </div>`;
-                                    });
-                                    html += `</div>`;
-                                } else {
-                                    // Mobile view table
+                                html += `<div class="grid grid-cols-2 gap-2">`;
+                                groupItems.forEach(i => {
                                     html += `
-                                    <table class="w-full text-xs border border-slate-200 rounded-b overflow-hidden shadow-sm">
-                                        <thead class="bg-slate-50 font-bold text-slate-600">
-                                            <tr class="divide-x">
-                                                <th class="p-2 text-left">Item</th>
-                                                <th class="p-2 w-24 text-blue-700 text-[9px] leading-tight text-center">PROGRAMAR ADECUACIÓN</th>
-                                                <th class="p-2 w-24 text-red-700 text-[9px] leading-tight text-center">FALLA CRÍTICA</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y">
-                                            ${groupItems.map((i, idx) => `
-                                                <tr class="${idx%2===0?'bg-white':'bg-slate-50'} hover:bg-yellow-50 divide-x transition-colors">
-                                                    <td class="p-2 font-medium">${i.label}</td>
-                                                    <td class="p-2 text-center"><input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='PROGRAMAR ADECUACIÓN'?'checked':''} onclick="toggleCheck('${i.id}', 'PROGRAMAR ADECUACIÓN')" class="w-5 h-5 cursor-pointer"></td>
-                                                    <td class="p-2 text-center"><input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='FALLA CRÍTICA'?'checked':''} onclick="toggleCheck('${i.id}', 'FALLA CRÍTICA')" class="w-5 h-5 cursor-pointer"></td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>`;
-                                }
+                                    <div class="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded text-[11px] hover:bg-yellow-50 transition-colors">
+                                        <span class="font-bold text-slate-700 truncate mr-2" title="${i.label}">${i.label}</span>
+                                        <div class="flex items-center gap-3 shrink-0">
+                                            <label class="flex items-center gap-1 cursor-pointer">
+                                                <span class="text-[9px] font-black text-blue-700 uppercase">Prog</span>
+                                                <input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='PROGRAMAR ADECUACIÓN'?'checked':''} onclick="toggleCheck('${i.id}', 'PROGRAMAR ADECUACIÓN')" class="w-4 h-4 cursor-pointer">
+                                            </label>
+                                            <label class="flex items-center gap-1 cursor-pointer">
+                                                <span class="text-[9px] font-black text-red-700 uppercase">Critico</span>
+                                                <input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='FALLA CRÍTICA'?'checked':''} onclick="toggleCheck('${i.id}', 'FALLA CRÍTICA')" class="w-4 h-4 cursor-pointer">
+                                            </label>
+                                        </div>
+                                    </div>`;
+                                });
+                                html += `</div>`;
                                 html += `</div>`;
                                 return html;
                             }).join('');
@@ -940,7 +933,7 @@
                 : state.history;
 
             const overlay = document.createElement('div');
-            overlay.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 print:hidden';
+            overlay.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 print:hidden history-modal-overlay';
             overlay.innerHTML = `
                 <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
                     <div class="p-6 border-b flex justify-between items-center bg-slate-50">
@@ -954,28 +947,24 @@
                     </div>
                     <div class="p-0 overflow-y-auto flex-1">
                         <table class="w-full text-sm">
-                            <thead class="bg-slate-100 sticky top-0">
-                                <tr>
-                                    <th class="p-4 text-left font-bold text-slate-600 uppercase text-[10px]">Fecha</th>
-                                    <th class="p-4 text-left font-bold text-slate-600 uppercase text-[10px]">Vehículo</th>
-                                    <th class="p-4 text-left font-bold text-slate-600 uppercase text-[10px]">Tipo</th>
-                                    <th class="p-4 text-center font-bold text-slate-600 uppercase text-[10px]">Estado</th>
-                                </tr>
-                            </thead>
                             <tbody class="divide-y">
                                 ${historyList.length === 0 ? '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">Sin registros guardados</td></tr>' : 
                                 historyList.map(h => `
-                                    <tr class="hover:bg-red-50 transition-colors cursor-pointer" onclick="selectVehicle('${h.vehicleId}', '${h.weekDate}')">
-                                        <td class="p-4">
+                                    <tr class="hover:bg-red-50 transition-colors group">
+                                        <td class="p-4 cursor-pointer" onclick="selectVehicle('${h.vehicleId}', '${h.weekDate}')">
                                             <div class="font-bold">${new Date(h.timestamp).toLocaleDateString()}</div>
                                             <div class="text-[10px] text-slate-400">${new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                                         </td>
-                                        <td class="p-4 font-mono text-xs font-bold text-red-700">${h.vehicleId}</td>
-                                        <td class="p-4"><span class="bg-slate-200 px-2 py-1 rounded text-[10px] uppercase font-bold text-slate-600">${h.type}</span></td>
-                                        <td class="p-4 text-center">
-                                            <span class="text-[10px] font-bold ${h.type === 'Parcial' ? 'text-blue-600' : 'text-green-600'}">
-                                                ${h.type === 'Parcial' ? 'RESTAURAR' : 'COMPLETO'}
-                                            </span>
+                                        <td class="p-4 font-mono text-xs font-bold text-red-700 cursor-pointer" onclick="selectVehicle('${h.vehicleId}', '${h.weekDate}')">${h.vehicleId}</td>
+                                        <td class="p-4 cursor-pointer" onclick="selectVehicle('${h.vehicleId}', '${h.weekDate}')">
+                                            <span class="bg-slate-200 px-2 py-1 rounded text-[10px] uppercase font-bold text-slate-600">${h.type}</span>
+                                        </td>
+                                        <td class="p-4 text-right">
+                                            <button onclick="deleteRecord('${h.id}')" class="text-slate-300 hover:text-red-600 p-2 transition-colors" title="Eliminar Registro">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
                                         </td>
                                     </tr>
                                 `).join('')}
