@@ -394,11 +394,14 @@
             render();
         }
 
-        function toggleCheck(itemId, status) {
-            if (state.formData.checks[itemId] === status) {
-                delete state.formData.checks[itemId];
+        function cycleCheck(itemId) {
+            const current = state.formData.checks[itemId];
+            if (!current) {
+                state.formData.checks[itemId] = 'PROGRAMAR ADECUACIÓN';
+            } else if (current === 'PROGRAMAR ADECUACIÓN') {
+                state.formData.checks[itemId] = 'FALLA CRÍTICA';
             } else {
-                state.formData.checks[itemId] = status;
+                delete state.formData.checks[itemId];
             }
             render();
         }
@@ -868,30 +871,41 @@
                             <button onclick="clearChecks()" class="text-red-500 text-xs font-bold print:hidden px-3 py-1 bg-red-50 rounded">Limpiar Selecciones</button>
                         </div>
 
+                        <!-- Legend -->
+                        <div class="mb-4 bg-white border border-slate-200 p-2 rounded-lg flex flex-wrap gap-4 items-center justify-center text-[10px] font-bold uppercase tracking-tight print:hidden shadow-sm">
+                            <span class="text-slate-400 italic">💡 GUÍA DE CLICS:</span>
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-100 border border-slate-200 rounded"></div> Inicial</div>
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-blue-600 rounded"></div> 1 Clic (Prog)</div>
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-red-600 rounded"></div> 2 Clics (Critico)</div>
+                            <div class="flex items-center gap-1 text-slate-400 ml-2">3er Clic reinicia al inicio</div>
+                        </div>
+
                         ${(() => {
                             const allItems = [...genericItems, ...specificItems];
                             const groups = [...new Set(allItems.map(i => i.sub))];
                             
                             return groups.map(groupName => {
                                 const groupItems = allItems.filter(i => i.sub === groupName);
-                                let html = `<div class="mb-8">
-                                    <h4 class="bg-slate-800 text-white px-3 py-1 text-xs font-bold uppercase tracking-wider mb-2 rounded-t">${groupName}</h4>`;
+                                let html = `<div class="mb-6">
+                                    <h4 class="bg-slate-800 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider mb-2 rounded-t">${groupName}</h4>`;
                                 
-                                html += `<div class="grid grid-cols-2 gap-2">`;
+                                html += `<div class="grid grid-cols-2 gap-1.5">`;
                                 groupItems.forEach(i => {
+                                    const status = state.formData.checks[i.id];
+                                    let bg = 'bg-slate-100 border-slate-200 text-slate-700';
+                                    let badge = '';
+                                    if (status === 'PROGRAMAR ADECUACIÓN') {
+                                        bg = 'bg-blue-600 border-blue-700 text-white shadow-inner';
+                                        badge = ' [PROG]';
+                                    } else if (status === 'FALLA CRÍTICA') {
+                                        bg = 'bg-red-600 border-red-700 text-white shadow-inner';
+                                        badge = ' [CRIT]';
+                                    }
+
                                     html += `
-                                    <div class="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded text-[11px] hover:bg-yellow-50 transition-colors">
-                                        <span class="font-bold text-slate-700 truncate mr-2" title="${i.label}">${i.label}</span>
-                                        <div class="flex items-center gap-3 shrink-0">
-                                            <label class="flex items-center gap-1 cursor-pointer">
-                                                <span class="text-[9px] font-black text-blue-700 uppercase">Prog</span>
-                                                <input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='PROGRAMAR ADECUACIÓN'?'checked':''} onclick="toggleCheck('${i.id}', 'PROGRAMAR ADECUACIÓN')" class="w-4 h-4 cursor-pointer">
-                                            </label>
-                                            <label class="flex items-center gap-1 cursor-pointer">
-                                                <span class="text-[9px] font-black text-red-700 uppercase">Critico</span>
-                                                <input type="radio" name="chk_${i.id}" ${state.formData.checks[i.id]==='FALLA CRÍTICA'?'checked':''} onclick="toggleCheck('${i.id}', 'FALLA CRÍTICA')" class="w-4 h-4 cursor-pointer">
-                                            </label>
-                                        </div>
+                                    <div onclick="cycleCheck('${i.id}')" 
+                                        class="flex items-center justify-center p-2 border rounded-md text-[10px] font-bold cursor-pointer transition-all ${bg} text-center h-12 leading-tight select-none active:scale-95">
+                                        ${i.label}${badge}
                                     </div>`;
                                 });
                                 html += `</div>`;
